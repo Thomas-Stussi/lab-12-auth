@@ -3,6 +3,7 @@ const { execSync } = require('child_process');
 const fakeRequest = require('supertest');
 const app = require('../lib/app');
 const client = require('../lib/client');
+
 describe('routes', () => {
   let token;
   const newTodo = {
@@ -11,6 +12,7 @@ describe('routes', () => {
     completed: false,
     owner_id: 2,
   };
+
   beforeAll(async done => {
     execSync('npm run setup-db');
     client.connect();
@@ -26,6 +28,7 @@ describe('routes', () => {
   afterAll(done => {
     return client.end(done);
   });
+
   test('returns a new todo when creating new todo', async(done) => {
     const data = await fakeRequest(app)
       .post('/api/todos')
@@ -51,6 +54,19 @@ describe('routes', () => {
       .set('Authorization', token)
       .expect('Content-Type', /json/)
       .expect(200);
+    expect(data.body).toEqual(expected);
+    done();
+  });
+
+  test('wont return anything when hitting GET /todos as an unauthorized user', async(done) => {
+    const expected =
+      {
+        'error': 'no authorization found'
+      };
+    const data = await fakeRequest(app)
+      .get('/api/todos')
+      .expect('Content-Type', /json/)
+      .expect(401);
     expect(data.body).toEqual(expected);
     done();
   });
@@ -87,5 +103,19 @@ describe('routes', () => {
     expect(data.body).toEqual(expected);
     done();
   });
-  
+
+  test('delete a single todo for the user when hitting DELETE /todos/:id', async(done) => {
+    await fakeRequest(app)
+      .delete('/api/todos/4')
+      .set('Authorization', token)
+      .expect('Content-Type', /json/)
+      .expect(200);
+    const data = await fakeRequest(app)
+      .get('/api/todos/')
+      .set('Authorization', token)
+      .expect('Content-Type', /json/)
+      .expect(200);
+    expect(data.body).toEqual([]);
+    done();
+  });
 });
